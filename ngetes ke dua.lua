@@ -197,7 +197,6 @@ function Library:ColorPicker(title, defaultColor, callback)
             update()
         end
     end)
-end)
 end
 
 return Library
