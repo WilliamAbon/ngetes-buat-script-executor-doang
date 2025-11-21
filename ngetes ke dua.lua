@@ -9,8 +9,7 @@ Library.Signals = {}
 
 -- buat window
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Ewek2_Kontol"
-ScreenGui.Parent = game.CoreGui
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
 local Main = Instance.new("Frame")
 Main.Size = UDim2.new(0, 250, 0, 300)
@@ -77,14 +76,15 @@ function Library:Slider(title, min, max, callback)
 end
 
 -- fungsi colorpicker sederhana
-function Library:ColorPicker(title, default, callback)
+function Library:ColorPicker(title, defaultColor, callback)
     local holder = Instance.new("Frame")
-    holder.Size = UDim2.new(1, -10, 0, 45)
+    holder.Size = UDim2.new(1, -10, 0, 200)
     holder.BackgroundColor3 = Color3.fromRGB(40,40,40)
     holder.Parent = Main
 
     local text = Instance.new("TextLabel")
-    text.Size = UDim2.new(0.6, 0, 1, 0)
+    text.Size = UDim2.new(1, -10, 0, 20)
+    text.Position = UDim2.new(0, 5, 0, 5)
     text.BackgroundTransparency = 1
     text.Text = title
     text.TextColor3 = Color3.new(1,1,1)
@@ -92,18 +92,112 @@ function Library:ColorPicker(title, default, callback)
     text.TextSize = 16
     text.Parent = holder
 
-    local box = Instance.new("TextButton")
-    box.Size = UDim2.new(0.3, 0, 0.7, 0)
-    box.Position = UDim2.new(0.65, 0, 0.15, 0)
-    box.BackgroundColor3 = default
-    box.Text = ""
-    box.Parent = holder
+    -- HSV storage
+    local h, s, v = Color3.toHSV(defaultColor)
 
-    box.MouseButton1Click:Connect(function()
-        local color = Color3.fromHSV(math.random(), 1, 1)
-        box.BackgroundColor3 = color
-        callback(color)
+    -- preview box
+    local preview = Instance.new("Frame")
+    preview.Size = UDim2.new(0, 40, 0, 20)
+    preview.Position = UDim2.new(1, -45, 0, 5)
+    preview.BackgroundColor3 = defaultColor
+    preview.Parent = holder
+
+    -- SV Square
+    local SV = Instance.new("Frame")
+    SV.Size = UDim2.new(0.75, -10, 1, -40)
+    SV.Position = UDim2.new(0, 5, 0, 30)
+    SV.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+    SV.ClipsDescendants = true
+    SV.Parent = holder
+
+    local gradientS = Instance.new("UIGradient")
+    gradientS.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.new(1,1,1)),
+        ColorSequenceKeypoint.new(1, Color3.fromHSV(h,1,1))
+    }
+    gradientS.Parent = SV
+
+    local gradientV = Instance.new("UIGradient")
+    gradientV.Rotation = 90
+    gradientV.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.new(0,0,0)),
+        ColorSequenceKeypoint.new(1, Color3.new(1,1,1))
+    }
+    gradientV.Parent = SV
+
+    local SVdot = Instance.new("Frame")
+    SVdot.Size = UDim2.new(0, 10, 0, 10)
+    SVdot.BackgroundColor3 = Color3.new(1,1,1)
+    SVdot.AnchorPoint = Vector2.new(0.5,0.5)
+    SVdot.Position = UDim2.new(s,0, 1-v,0)
+    SVdot.Parent = SV
+
+    -- Hue bar
+    local Hbar = Instance.new("Frame")
+    Hbar.Size = UDim2.new(0.2, -10, 1, -40)
+    Hbar.Position = UDim2.new(0.8, 0, 0, 30)
+    Hbar.Parent = holder
+
+    local hueGrad = Instance.new("UIGradient")
+    hueGrad.Rotation = 90
+    hueGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0.0, Color3.fromHSV(0,1,1)),
+        ColorSequenceKeypoint.new(0.17, Color3.fromHSV(0.17,1,1)),
+        ColorSequenceKeypoint.new(0.33, Color3.fromHSV(0.33,1,1)),
+        ColorSequenceKeypoint.new(0.50, Color3.fromHSV(0.50,1,1)),
+        ColorSequenceKeypoint.new(0.67, Color3.fromHSV(0.67,1,1)),
+        ColorSequenceKeypoint.new(0.83, Color3.fromHSV(0.83,1,1)),
+        ColorSequenceKeypoint.new(1.0, Color3.fromHSV(1,1,1))
+    }
+    hueGrad.Parent = Hbar
+
+    local Hdot = Instance.new("Frame")
+    Hdot.Size = UDim2.new(1,0, 0, 6)
+    Hdot.AnchorPoint = Vector2.new(0,0.5)
+    Hdot.Position = UDim2.new(0,0, h,0)
+    Hdot.BackgroundColor3 = Color3.new(1,1,1)
+    Hdot.Parent = Hbar
+
+    local UIS = game:GetService("UserInputService")
+    local draggingSV = false
+    local draggingH = false
+
+    local function update()
+        local col = Color3.fromHSV(h, s, v)
+        preview.BackgroundColor3 = col
+        SV.BackgroundColor3 = Color3.fromHSV(h,1,1)
+        callback(col)
+    end
+
+    SV.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSV = true end
     end)
+    Hbar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingH = true end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSV = false draggingH = false end
+    end)
+
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if draggingSV then
+            local m = UIS:GetMouseLocation()
+            local relX = (m.X - SV.AbsolutePosition.X) / SV.AbsoluteSize.X
+            local relY = (m.Y - SV.AbsolutePosition.Y) / SV.AbsoluteSize.Y
+            s = math.clamp(relX, 0, 1)
+            v = 1 - math.clamp(relY, 0, 1)
+            SVdot.Position = UDim2.new(s,0, 1-v,0)
+            update()
+        end
+        if draggingH then
+            local m = UIS:GetMouseLocation()
+            local relY = (m.Y - Hbar.AbsolutePosition.Y) / Hbar.AbsoluteSize.Y
+            h = math.clamp(relY, 0, 1)
+            Hdot.Position = UDim2.new(0,0, h,0)
+            update()
+        end
+    end)
+end)
 end
 
 return Library
